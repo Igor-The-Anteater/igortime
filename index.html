@@ -94,20 +94,28 @@ function drawAnt(a,t){const k=a.sz*(W<600?1:1.15)*(1+a.pop*.6);g.save();g.transl
 
 /* ---------- tilt: on a phone, tilting it pushes Igor (and the plankton) through space ---------- */
 const TILT={x:0,y:0,rx:0,ry:0,on:false,x0:null,y0:null};
-function onOri(e){if(e.beta==null||e.gamma==null)return;const b=e.beta,gm=e.gamma;
+const DBG={on:/debug/.test(location.search),ori:0,mot:0,src:'',b:0,g:0};
+function onOri(e){DBG.ori++;if(e.beta==null||e.gamma==null)return;if(DBG.src==='motion')return;DBG.src='orientation';feed(e.beta,e.gamma)}
+/* fallback: some browsers (e.g. Brave) give no orientation data, so read gravity from the accelerometer */
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+function onMot(e){DBG.mot++;const a=e.accelerationIncludingGravity;if(!a||a.x==null||a.y==null)return;if(DBG.src==='orientation')return;
+ const sg=isIOS?-1:1,G=9.81,deg=v=>Math.asin(clamp(v/G,-1,1))*57.2958;DBG.src='motion';feed(deg(sg*a.y),deg(-sg*a.x))}
+function feed(b,gm){DBG.b=b;DBG.g=gm;
  const ang=((screen.orientation&&screen.orientation.angle)!=null?screen.orientation.angle:(window.orientation||0));
  let x,y;if(ang===90){x=b;y=-gm}else if(ang===-90||ang===270){x=-b;y=gm}else if(ang===180){x=-gm;y=-b}else{x=gm;y=b}
  if(TILT.x0===null){TILT.x0=x;TILT.y0=y} // the way you hold the phone at the start is "flat"
  const dz=v=>Math.abs(v)<.06?0:v;TILT.rx=dz(clamp((x-TILT.x0)/20,-1,1));TILT.ry=dz(clamp((y-TILT.y0)/20,-1,1)); // about 20 degrees = full speed
  if(!TILT.on){TILT.on=true;const t=document.getElementById('tiltBtn');if(t)t.remove();setHint()}}
-function startTilt(){addEventListener('deviceorientation',onOri)}
+function startTilt(){addEventListener('deviceorientation',onOri);addEventListener('devicemotion',onMot)}
+setInterval(()=>{if(!DBG.on)return;let d=document.getElementById('dbg');if(!d){d=document.createElement('div');d.id='dbg';d.style.cssText='position:fixed;left:8px;top:60px;z-index:9;font:11px monospace;color:#7fe3ef;background:rgba(0,0,0,.6);padding:6px 8px;pointer-events:none;white-space:pre';document.body.appendChild(d)}
+ d.textContent='orientation events: '+DBG.ori+'\nmotion events: '+DBG.mot+'\nsource: '+(DBG.src||'none')+'\nbeta '+DBG.b.toFixed(1)+'  gamma '+DBG.g.toFixed(1)+'\ntilt x '+TILT.x.toFixed(2)+'  y '+TILT.y.toFixed(2)+'\nsecure: '+isSecureContext},250);
 addEventListener('orientationchange',()=>{TILT.x0=TILT.y0=null});document.addEventListener('visibilitychange',()=>{if(!document.hidden)TILT.x0=TILT.y0=null});
 const touch=matchMedia('(pointer: coarse)').matches;
 function setHint(){document.getElementById('hint').textContent=touch?(TILT.on?'tilt your phone to move Igor · tap to set a tofu ant loose · tap Igor':'tap to set a tofu ant loose · tap Igor'):'click anywhere to set a tofu ant loose · click Igor'}
 if(window.DeviceOrientationEvent){startTilt(); // Android: works straight away
- if(typeof DeviceOrientationEvent.requestPermission==='function'){ // iPhone: needs a tap to ask (the button goes away as soon as tilt data arrives)
+ if(isIOS&&typeof DeviceOrientationEvent.requestPermission==='function'){ // iPhone: needs a tap to ask (the button goes away as soon as tilt data arrives)
   if(touch){const b=document.createElement('button');b.id='tiltBtn';b.type='button';b.textContent='Tilt to swim with Igor';document.body.appendChild(b);
-   b.addEventListener('click',ev=>{ev.stopPropagation();DeviceOrientationEvent.requestPermission().then(()=>b.remove()).catch(()=>b.remove())})}}}
+   b.addEventListener('click',ev=>{ev.stopPropagation();DeviceOrientationEvent.requestPermission().then(()=>{if(window.DeviceMotionEvent&&DeviceMotionEvent.requestPermission)DeviceMotionEvent.requestPermission().catch(()=>{});b.remove()}).catch(()=>b.remove())})}}}
 
 /* ---------- Igor ---------- */
 const igorCv=document.createElement('canvas');igorCv.width=igorCv.height=512;const igx=igorCv.getContext('2d');let igorImg=null;
