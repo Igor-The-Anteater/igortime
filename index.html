@@ -93,15 +93,15 @@ function drawAnt(a,t){const k=a.sz*(W<600?1:1.15)*(1+a.pop*.6);g.save();g.transl
  g.restore()}
 
 /* ---------- tilt: on a phone, tilting it pushes Igor (and the plankton) through space ---------- */
-const TILT={x:0,y:0,on:false,x0:null,y0:null};
+const TILT={x:0,y:0,rx:0,ry:0,on:false,x0:null,y0:null};
 function onOri(e){if(e.beta==null||e.gamma==null)return;const b=e.beta,gm=e.gamma;
  const ang=((screen.orientation&&screen.orientation.angle)!=null?screen.orientation.angle:(window.orientation||0));
  let x,y;if(ang===90){x=b;y=-gm}else if(ang===-90||ang===270){x=-b;y=gm}else if(ang===180){x=-gm;y=-b}else{x=gm;y=b}
  if(TILT.x0===null){TILT.x0=x;TILT.y0=y} // the way you hold the phone at the start is "flat"
- const dz=v=>Math.abs(v)<.07?0:v;TILT.x=dz(clamp((x-TILT.x0)/30,-1,1));TILT.y=dz(clamp((y-TILT.y0)/30,-1,1));
+ const dz=v=>Math.abs(v)<.06?0:v;TILT.rx=dz(clamp((x-TILT.x0)/20,-1,1));TILT.ry=dz(clamp((y-TILT.y0)/20,-1,1)); // about 20 degrees = full speed
  if(!TILT.on){TILT.on=true;const t=document.getElementById('tiltBtn');if(t)t.remove();setHint()}}
 function startTilt(){addEventListener('deviceorientation',onOri)}
-addEventListener('orientationchange',()=>{TILT.x0=TILT.y0=null});
+addEventListener('orientationchange',()=>{TILT.x0=TILT.y0=null});document.addEventListener('visibilitychange',()=>{if(!document.hidden)TILT.x0=TILT.y0=null});
 const touch=matchMedia('(pointer: coarse)').matches;
 function setHint(){document.getElementById('hint').textContent=touch?(TILT.on?'tilt your phone to move Igor · tap to set a tofu ant loose · tap Igor':'tap to set a tofu ant loose · tap Igor'):'click anywhere to set a tofu ant loose · click Igor'}
 if(window.DeviceOrientationEvent){startTilt(); // Android: works straight away
@@ -182,6 +182,7 @@ function placeBubble(dt){if(bubT<=0&&Q.length){const[q,sec]=Q.shift();say(q,sec)
 /* ---------- loop ---------- */
 let last_t=performance.now()/1000,T=0;
 function step(now){now/=1000;let dt=Math.min(.05,now-last_t);last_t=now;if(reduce)dt*=.6;T+=dt;const t=T;
+ {const k=1-Math.exp(-dt*12);TILT.x+=(TILT.rx-TILT.x)*k;TILT.y+=(TILT.ry-TILT.y)*k}
  g.setTransform(DPR,0,0,DPR,0,0);g.drawImage(bg,0,0,W,H);
  const px=(IG.x-W/2)/W-TILT.x*.35,py=(IG.y-H/2)/H-TILT.y*.35;
  for(const s of STARS){const a=.35+.45*(.5+.5*Math.sin(t*s.sp+s.ph));g.fillStyle=`rgba(${s.c},${a})`;g.beginPath();g.arc(s.x-px*8*s.z,s.y-py*8*s.z,s.r,0,TAU);g.fill()}
@@ -202,7 +203,7 @@ function step(now){now/=1000;let dt=Math.min(.05,now-last_t);last_t=now;if(reduc
   const dx=a.x-sn.x,dy=a.y-sn.y,d=Math.hypot(dx,dy);
   if(d<IG.size*.8&&IG.state==='hunt'&&IG.prey===a){a.vx+=dx/d*30*dt;a.vy+=dy/d*30*dt;a.spin+=rnd(2)*dt}
   const v=Math.hypot(a.vx,a.vy),vm=TILT.on?46:34;if(v>vm){a.vx*=vm/v;a.vy*=vm/v}
-  a.vx+=rnd(6)*dt+TILT.x*16*dt;a.vy+=rnd(6)*dt+TILT.y*16*dt;
+  a.vx+=rnd(6)*dt+TILT.x*40*dt;a.vy+=rnd(6)*dt+TILT.y*40*dt;
   const m=24;if(a.x<m)a.vx+=20*dt;if(a.x>W-m)a.vx-=20*dt;if(a.y<70)a.vy+=20*dt;if(a.y>H-m)a.vy-=20*dt;
   a.x+=a.vx*dt;a.y+=a.vy*dt;a.ang+=a.spin*dt;a.leg+=dt*.5}
 
@@ -229,10 +230,11 @@ function step(now){now/=1000;let dt=Math.min(.05,now-last_t);last_t=now;if(reduc
 
  // steering
  const dx=want.x-IG.x,dy=want.y-IG.y,d=Math.hypot(dx,dy)||1,arrive=Math.min(1,d/(IG.size*.9));
- const tsp=TILT.on?(90+IG.size*.6):0,dvx=dx/d*speed*arrive+TILT.x*tsp,dvy=dy/d*speed*arrive+TILT.y*tsp,kk=1-Math.exp(-dt*(IG.state==='hunt'?2.4:1.4));
+ const tm=TILT.on?Math.min(1,Math.hypot(TILT.x,TILT.y)*1.8):0,tsp=220+IG.size*1.1; // the more you tilt, the more the phone drives Igor
+ const dvx=lerp(dx/d*speed*arrive,TILT.x*tsp,tm),dvy=lerp(dy/d*speed*arrive,TILT.y*tsp,tm),kk=1-Math.exp(-dt*(tm>.05?7:(IG.state==='hunt'?2.4:1.4)));
  IG.vx+=(dvx-IG.vx)*kk;IG.vy+=(dvy-IG.vy)*kk;IG.x+=IG.vx*dt;IG.y+=IG.vy*dt;
  const mg=IG.size*.4;IG.x=clamp(IG.x,mg,W-mg);IG.y=clamp(IG.y,mg+30,H-mg);
- if(IG.state==='wander'&&Math.abs(IG.vx)>14)IG.face=Math.sign(IG.vx);
+ if((IG.state==='wander'||tm>.35)&&Math.abs(IG.vx)>14)IG.face=Math.sign(IG.vx);
  IG.faceS+=(IG.face-IG.faceS)*(1-Math.exp(-dt*7));
  const tilt=clamp(IG.vy/260,-.35,.35)*IG.face+Math.sin(t*.7)*.05;IG.rot+=(tilt-IG.rot)*(1-Math.exp(-dt*3));
  IG.bump=Math.max(0,IG.bump-dt*2.2);
