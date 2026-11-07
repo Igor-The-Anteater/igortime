@@ -90,8 +90,8 @@ const TAU=Math.PI*2,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),lerp=(a,b,t)=>a+(b-
 const $=id=>document.getElementById(id);
 const LEVELS={
  easy:   {name:'Easy',   f0:220,oct:1,dur:2.0,replays:Infinity,zero:200,info:'One octave · long note · listen as often as you like'},
- medium: {name:'Medium', f0:165,oct:2,dur:1.4,replays:3,       zero:150,info:'Two octaves · shorter note · 3 replays per round'},
- extreme:{name:'Extreme',f0:165,oct:2,dur:0.7,replays:1,       zero:100,info:'Two octaves · very short note · 1 replay per round'}};
+ medium: {name:'Medium', f0:165,oct:2,dur:1.4,replays:1,       zero:150,info:'Two octaves · shorter note · you hear it twice'},
+ extreme:{name:'Extreme',f0:165,oct:2,dur:0.6,replays:0,       zero:100,info:'Two octaves · very short note · you hear it only once'}};
 const ROUNDS=5;
 let LV=LEVELS.easy,lvKey='easy';
 try{const s=localStorage.getItem('pitchStairsLevel');if(s&&LEVELS[s]){lvKey=s;LV=LEVELS[s]}}catch(e){}
